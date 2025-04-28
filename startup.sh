@@ -709,16 +709,74 @@ sync_plugins() {
 # Funktion zum Laden von Plugins
 load_plugins() {
     mkdir -p "$PLUGIN_DIR"
-    plugin_count=0
-    for plugin in "$PLUGIN_DIR"/*.sh; do
-        if [ -f "$plugin" ]; then
-            source "$plugin"
-            echo -e " ${BLUE}$((23 + plugin_count + 1)))${NC} Plugin: $(basename "$plugin" .sh)"
-            ((plugin_count++))
+    # Globale Arrays für geladene Plugins
+    LOADED_PLUGIN_FILES=()
+    local plugin_names=()
+    local plugin_sources=()
+    local repo_plugin_dir=""
+
+    # Prüfen, ob das Skript in einem Git-Repository ist und den Pfad ermitteln
+    if git -C "$(dirname "$0")" rev-parse --is-inside-work-tree &>/dev/null; then
+        local repo_root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+        repo_plugin_dir="$repo_root/plugins"
+        if [ ! -d "$repo_plugin_dir" ]; then
+            repo_plugin_dir="" # Verzeichnis existiert nicht
+        fi
+    fi
+
+    # Lokale Plugins sammeln
+    for plugin_file in "$PLUGIN_DIR"/*.sh; do
+        if [ -f "$plugin_file" ]; then
+            local name=$(basename "$plugin_file" .sh)
+            LOADED_PLUGIN_FILES+=("$plugin_file")
+            plugin_names+=("$name")
+            plugin_sources+=("[L]") # Markierung für lokale Plugins
         fi
     done
-    echo -e " ${BLUE}24)${NC} Plugins synchronisieren und Ordner öffnen"
-    return $plugin_count
+
+    # Repository Plugins sammeln (falls vorhanden und nicht schon lokal)
+    if [ -n "$repo_plugin_dir" ]; then
+        for plugin_file in "$repo_plugin_dir"/*.sh; do
+            if [ -f "$plugin_file" ]; then
+                local name=$(basename "$plugin_file" .sh)
+                # Prüfen, ob ein Plugin mit gleichem Namen bereits lokal existiert
+                local found_local=false
+                for existing_name in "${plugin_names[@]}"; do
+                    if [ "$existing_name" == "$name" ]; then
+                        found_local=true
+                        break
+                    fi
+                done
+
+                if [ "$found_local" == false ]; then
+                    LOADED_PLUGIN_FILES+=("$plugin_file")
+                    plugin_names+=("$name")
+                    plugin_sources+=("[R]") # Markierung für Repo-Plugins
+                fi
+            fi
+        done
+    fi
+
+    # Plugins sourcen und im Menü anzeigen
+    local plugin_count=0
+    local menu_start_option=19 # Startnummer nach Option 18 (Beenden)
+
+    # Option 24 bleibt fest für Synchronisation
+    echo -e " ${BLUE}24)${NC} Lokale Plugins synchronisieren & Ordner öffnen"
+
+    # Dynamische Optionen für gefundene Plugins
+    for i in "${!LOADED_PLUGIN_FILES[@]}"; do
+        local file="${LOADED_PLUGIN_FILES[$i]}"
+        local name="${plugin_names[$i]}"
+        local source_mark="${plugin_sources[$i]}"
+        local menu_option=$((menu_start_option + plugin_count))
+
+        source "$file"
+        echo -e " ${BLUE}$menu_option)${NC} Plugin: $name $source_mark"
+        ((plugin_count++))
+    done
+
+    return ${#LOADED_PLUGIN_FILES[@]} # Anzahl der *gefundenen* Plugins zurückgeben
 }
 
 # Funktion für das interaktive Tutorial
@@ -876,16 +934,18 @@ while true; do
             read -p "Weiter..."
             ;;
         *)
-            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -gt 18 ] && [ "$choice" -le $((18 + plugin_count)) ]; then
-                plugin_index=$((choice - 18 - 1))
-                plugin_file=$(ls "$PLUGIN_DIR"/*.sh | sed -n "$((plugin_index + 1))p")
-                plugin_name=$(basename "$plugin_file" .sh)
+            local menu_start_option=19 # Muss mit load_plugins übereinstimmen
+            local plugin_index=$((choice - menu_start_option))
+            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge "$menu_start_option" ] && [ "$plugin_index" -lt ${#LOADED_PLUGIN_FILES[@]} ]; then
+                local plugin_file="${LOADED_PLUGIN_FILES[$plugin_index]}"
+                local plugin_name=$(basename "$plugin_file" .sh)
                 if [ -n "$plugin_file" ] && type "run_$plugin_name" &>/dev/null; then
                     log_message "INFO" "Führe Plugin '$plugin_name' aus."
+                    # Führe die run_ Funktion des Plugins aus
                     "run_$plugin_name"
                 else
-                    log_message "ERROR" "Plugin '$plugin_name' nicht ausführbar."
-                    echo -e "${RED}Plugin nicht ausführbar.${NC}"
+                    log_message "ERROR" "Plugin '$plugin_name' nicht ausführbar oder Funktion 'run_$plugin_name' nicht gefunden."
+                    echo -e "${RED}Plugin nicht ausführbar oder Funktion 'run_$plugin_name' nicht gefunden.${NC}"
                 fi
                 read -p "Weiter..."
             else
