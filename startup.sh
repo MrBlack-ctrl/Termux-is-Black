@@ -757,26 +757,124 @@ load_plugins() {
         done
     fi
 
-    # Plugins sourcen und im Menü anzeigen
-    local plugin_count=0
-    local menu_start_option=19 # Startnummer nach Option 18 (Beenden)
-
-    # Option 24 bleibt fest für Synchronisation
-    echo -e " ${BLUE}24)${NC} Lokale Plugins synchronisieren & Ordner öffnen"
-
-    # Dynamische Optionen für gefundene Plugins
-    for i in "${!LOADED_PLUGIN_FILES[@]}"; do
-        local file="${LOADED_PLUGIN_FILES[$i]}"
-        local name="${plugin_names[$i]}"
-        local source_mark="${plugin_sources[$i]}"
-        local menu_option=$((menu_start_option + plugin_count))
-
+    # Plugins sourcen
+    for file in "${LOADED_PLUGIN_FILES[@]}"; do
         source "$file"
-        echo -e " ${BLUE}$menu_option)${NC} Plugin: $name $source_mark"
-        ((plugin_count++))
     done
 
     return ${#LOADED_PLUGIN_FILES[@]} # Anzahl der *gefundenen* Plugins zurückgeben
+}
+
+# Funktion zum Starten eines Plugin-Skripts
+start_plugin_script() {
+    echo -e "${CYAN}${BOLD}▶️🔌 Plugin Skript starten${NC}"
+    log_message "INFO" "Starte Plugin-Auswahl."
+
+    if [ ${#LOADED_PLUGIN_FILES[@]} -eq 0 ]; then
+        log_message "WARNING" "Keine Plugin-Skripte gefunden."
+        echo -e "${YELLOW}Keine Plugin-Skripte gefunden.${NC}"; read -p "Weiter..."; return
+    fi
+
+    echo -e "${YELLOW}Verfügbare Plugins:${NC}"
+    local menu_start_option=1 # Startnummer für diese Unteroption
+    for i in "${!LOADED_PLUGIN_FILES[@]}"; do
+        local file="${LOADED_PLUGIN_FILES[$i]}"
+        local name=$(basename "$file" .sh)
+        local source_mark="[L]"
+        if [[ "$file" == *"plugins/"* ]]; then # Einfache Prüfung, ob es im Repo-Ordner liegt
+             if [[ "$file" != *"$PLUGIN_DIR"* ]]; then # Nicht im lokalen Ordner
+                source_mark="[R]"
+             fi
+        fi
+        echo -e " ${MAGENTA}$((menu_start_option + i)))${NC} $name $source_mark"
+    done
+    echo ""
+
+    read -p "$(echo -e "${BLUE}Wähle Plugin [Nummer]: ${NC}")" plugin_choice
+
+    if ! [[ "$plugin_choice" =~ ^[0-9]+$ ]] || [ "$plugin_choice" -lt "$menu_start_option" ] || [ "$plugin_choice" -gt $((menu_start_option + ${#LOADED_PLUGIN_FILES[@]} - 1)) ]; then
+        log_message "ERROR" "Ungültige Plugin-Auswahl: $plugin_choice"
+        echo -e "${RED}Ungültige Auswahl.${NC}"; read -p "Weiter..."; return
+    fi
+
+    local selected_index=$((plugin_choice - menu_start_option))
+    local plugin_file="${LOADED_PLUGIN_FILES[$selected_index]}"
+    local plugin_name=$(basename "$plugin_file" .sh)
+
+    if [ -n "$plugin_file" ] && type "run_$plugin_name" &>/dev/null; then
+        log_message "INFO" "Führe Plugin '$plugin_name' aus."
+        echo -e "${CYAN}Führe Plugin '$plugin_name' aus...${NC}"
+        # Führe die run_ Funktion des Plugins aus
+        "run_$plugin_name"
+        log_message "INFO" "Plugin-Ausführung beendet: '$plugin_name'."
+        echo -e "${GREEN}Plugin-Ausführung beendet.${NC}"
+    else
+        log_message "ERROR" "Plugin '$plugin_name' nicht ausführbar oder Funktion 'run_$plugin_name' nicht gefunden."
+        echo -e "${RED}Plugin nicht ausführbar oder Funktion 'run_$plugin_name' nicht gefunden.${NC}"
+    fi
+    read -p "Weiter..."
+}
+
+# Funktion zum Anzeigen und Starten von Plugin-Skripten
+show_and_run_plugins() {
+    echo -e "${CYAN}${BOLD}🔌 Plugin Skripte${NC}"
+    log_message "INFO" "Starte Plugin-Auswahl und -Ausführung."
+
+    # Option zur Synchronisation beibehalten
+    echo -e " ${MAGENTA}s)${NC} Lokale Plugins synchronisieren & Ordner öffnen"
+    echo ""
+
+    if [ ${#LOADED_PLUGIN_FILES[@]} -eq 0 ]; then
+        log_message "WARNING" "Keine Plugin-Skripte gefunden."
+        echo -e "${YELLOW}Keine Plugin-Skripte gefunden.${NC}"; read -p "Weiter..."; return
+    fi
+
+    echo -e "${YELLOW}Verfügbare Plugins:${NC}"
+    local menu_start_option=1 # Startnummer für die Plugin-Liste
+    for i in "${!LOADED_PLUGIN_FILES[@]}"; do
+        local file="${LOADED_PLUGIN_FILES[$i]}"
+        local name=$(basename "$file" .sh)
+        local source_mark="[L]"
+        if [[ "$file" == *"plugins/"* ]]; then # Einfache Prüfung, ob es im Repo-Ordner liegt
+             if [[ "$file" != *"$PLUGIN_DIR"* ]]; then # Nicht im lokalen Ordner
+                source_mark="[R]"
+             fi
+        fi
+        echo -e " ${MAGENTA}$((menu_start_option + i)))${NC} $name $source_mark"
+    done
+    echo ""
+
+    read -p "$(echo -e "${BLUE}Wähle Plugin [Nummer/s]: ${NC}")" plugin_choice
+
+    if [ "$plugin_choice" = "s" ]; then
+        sync_plugins
+        echo -e "${CYAN}Öffne Plugin-Ordner: $PLUGIN_DIR${NC}"
+        if check_command "mc" "mc"; then
+            mc "$PLUGIN_DIR"
+        else
+            ls -l "$PLUGIN_DIR"
+        fi
+    elif [[ "$plugin_choice" =~ ^[0-9]+$ ]] && [ "$plugin_choice" -ge "$menu_start_option" ] && [ "$plugin_choice" -le $((menu_start_option + ${#LOADED_PLUGIN_FILES[@]} - 1)) ]; then
+        local selected_index=$((plugin_choice - menu_start_option))
+        local plugin_file="${LOADED_PLUGIN_FILES[$selected_index]}"
+        local plugin_name=$(basename "$plugin_file" .sh)
+
+        if [ -n "$plugin_file" ] && type "run_$plugin_name" &>/dev/null; then
+            log_message "INFO" "Führe Plugin '$plugin_name' aus."
+            echo -e "${CYAN}Führe Plugin '$plugin_name' aus...${NC}"
+            # Führe die run_ Funktion des Plugins aus
+            "run_$plugin_name"
+            log_message "INFO" "Plugin-Ausführung beendet: '$plugin_name'."
+            echo -e "${GREEN}Plugin-Ausführung beendet.${NC}"
+        else
+            log_message "ERROR" "Plugin '$plugin_name' nicht ausführbar oder Funktion 'run_$plugin_name' nicht gefunden."
+            echo -e "${RED}Plugin nicht ausführbar oder Funktion 'run_$plugin_name' nicht gefunden.${NC}"
+        fi
+    else
+        log_message "ERROR" "Ungültige Plugin-Auswahl: $plugin_choice"
+        echo -e "${RED}Ungültige Auswahl.${NC}"
+    fi
+    read -p "Weiter..."
 }
 
 # Funktion für das interaktive Tutorial
@@ -924,35 +1022,13 @@ while true; do
         17) show_tutorial;;
         18) echo -e "${GREEN}👋 Auf Wiedersehen!${NC}"; log_message "INFO" "Skript beendet."; unset TERMUX_SCRIPT_STARTUP_RUNNING; exit 0;;
         24)
-            sync_plugins
-            echo -e "${CYAN}Öffne Plugin-Ordner: $PLUGIN_DIR${NC}"
-            if check_command "mc" "mc"; then
-                mc "$PLUGIN_DIR"
-            else
-                ls -l "$PLUGIN_DIR"
-            fi
-            read -p "Weiter..."
+            show_and_run_plugins
             ;;
         *)
-            local menu_start_option=19 # Muss mit load_plugins übereinstimmen
-            local plugin_index=$((choice - menu_start_option))
-            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge "$menu_start_option" ] && [ "$plugin_index" -lt ${#LOADED_PLUGIN_FILES[@]} ]; then
-                local plugin_file="${LOADED_PLUGIN_FILES[$plugin_index]}"
-                local plugin_name=$(basename "$plugin_file" .sh)
-                if [ -n "$plugin_file" ] && type "run_$plugin_name" &>/dev/null; then
-                    log_message "INFO" "Führe Plugin '$plugin_name' aus."
-                    # Führe die run_ Funktion des Plugins aus
-                    "run_$plugin_name"
-                else
-                    log_message "ERROR" "Plugin '$plugin_name' nicht ausführbar oder Funktion 'run_$plugin_name' nicht gefunden."
-                    echo -e "${RED}Plugin nicht ausführbar oder Funktion 'run_$plugin_name' nicht gefunden.${NC}"
-                fi
-                read -p "Weiter..."
-            else
-                log_message "ERROR" "Ungültige Menüauswahl: $choice"
-                echo -e "${RED}🚨 Ungültige Auswahl.${NC}"
-                sleep 2
-            fi
+            log_message "ERROR" "Ungültige Menüauswahl: $choice"
+            echo -e "${RED}🚨 Ungültige Auswahl.${NC}"
+            sleep 2
             ;;
     esac
 done
+
