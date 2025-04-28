@@ -6,6 +6,7 @@ LOG_FILE="$HOME/termux_startup.log"
 REPO_URL="https://github.com/MrBlack-ctrl/Termux-is-Black"
 RAW_SCRIPT_URL="https://raw.githubusercontent.com/MrBlack-ctrl/Termux-is-Black/main/startup.sh"
 PLUGIN_DIR="$HOME/.termux_is_black_plugins"
+PLUGIN_REPO_URL="https://raw.githubusercontent.com/MrBlack-ctrl/Termux-is-Black/main/plugins/"
 
 # Standardkonfiguration laden oder erstellen
 load_config() {
@@ -22,6 +23,7 @@ BASHRC_FILE="$HOME/.bashrc"
 AUTOSTART_MARKER="# AUTOSTART_TERMUX_SCRIPT_V1"
 LOG_FILE="$HOME/termux_startup.log"
 THEME="default"
+PLUGIN_REPO_URL="$PLUGIN_REPO_URL"
 EOF
         source "$CONFIG_FILE"
         log_message "INFO" "Standardkonfiguration '$CONFIG_FILE' erstellt."
@@ -181,9 +183,9 @@ update_script() {
 # Funktion zum Anzeigen des Banners
 show_banner() {
     clear
-    echo -e "${GREEN}${BOLD}=========================================${NC}"
-    echo -e "${CYAN}${BOLD}      🚀 BLACK Termux! 🚀       ${NC}"
-    echo -e "${GREEN}${BOLD}=========================================${NC}"
+    echo -e "${BLUE}${BOLD}=========================================${NC}"
+    echo -e "${CYAN}${BOLD}      🚀 Willkommen bei Termux! 🚀       ${NC}"
+    echo -e "${MAGENTA}${BOLD}=========================================${NC}"
     echo ""
 }
 
@@ -648,6 +650,62 @@ edit_config() {
     read -p "Weiter..."
 }
 
+# Funktion zum Synchronisieren von Plugins aus dem Repository
+sync_plugins() {
+    echo -e "${CYAN}${BOLD}🔌 Synchronisiere Plugins aus Repository${NC}"
+    log_message "INFO" "Starte Plugin-Synchronisation von '$PLUGIN_REPO_URL'."
+    if ! check_command "wget" "wget"; then read -p "Weiter..."; return; fi
+
+    mkdir -p "$PLUGIN_DIR" || {
+        log_message "ERROR" "Konnte Plugin-Verzeichnis '$PLUGIN_DIR' nicht erstellen."
+        echo -e "${RED}Konnte Plugin-Verzeichnis '$PLUGIN_DIR' nicht erstellen.${NC}"
+        read -p "Weiter..."; return
+    }
+
+    # Temporäres Verzeichnis für Downloads
+    temp_dir="$HOME/.termux_is_black_plugins_temp"
+    mkdir -p "$temp_dir" || {
+        log_message "ERROR" "Konnte temporäres Verzeichnis '$temp_dir' nicht erstellen."
+        echo -e "${RED}Konnte temporäres Verzeichnis '$temp_dir' nicht erstellen.${NC}"
+        read -p "Weiter..."; return
+    }
+
+    # Liste der Plugins aus dem Repository abrufen (über GitHub API oder Fallback)
+    echo -e "${CYAN}Suche nach Plugins in '$PLUGIN_REPO_URL'...${NC}"
+    plugin_list=$(wget -q -O - "${PLUGIN_REPO_URL%plugins/*}tree/main/plugins" | grep -oP 'href="[^"]+/blob/main/plugins/[^"]+\.sh"' | sed 's/.*\/\(.*\.sh\).*/\1/')
+    if [ -z "$plugin_list" ]; then
+        log_message "WARNING" "Keine Plugins in '$PLUGIN_REPO_URL' gefunden oder Verbindung fehlgeschlagen."
+        echo -e "${YELLOW}Keine Plugins gefunden oder Verbindung fehlgeschlagen. Nur lokale Plugins werden verwendet.${NC}"
+    else
+        echo -e "${BLUE}Gefundene Plugins:${NC} $plugin_list"
+        for plugin in $plugin_list; do
+            plugin_url="${PLUGIN_REPO_URL}${plugin}"
+            plugin_path="$PLUGIN_DIR/$plugin"
+            temp_path="$temp_dir/$plugin"
+            echo -e "${CYAN}Lade $plugin...${NC}"
+            if wget -O "$temp_path" "$plugin_url" 2>> "$LOG_FILE"; then
+                if grep -q "^run_" "$temp_path"; then
+                    mv "$temp_path" "$plugin_path" && chmod +x "$plugin_path"
+                    log_message "INFO" "Plugin '$plugin' erfolgreich heruntergeladen und installiert."
+                    echo -e "${GREEN}Plugin '$plugin' installiert.${NC}"
+                else
+                    log_message "ERROR" "Plugin '$plugin' ist ungültig (keine run_ Funktion gefunden)."
+                    echo -e "${RED}Plugin '$plugin' ist ungültig (keine run_ Funktion).${NC}"
+                    rm -f "$temp_path"
+                fi
+            else
+                log_message "ERROR" "Fehler beim Herunterladen von '$plugin'."
+                echo -e "${RED}Fehler beim Herunterladen von '$plugin'.${NC}"
+                rm -f "$temp_path"
+            fi
+        done
+    fi
+
+    rm -rf "$temp_dir"
+    log_message "INFO" "Plugin-Synchronisation abgeschlossen."
+    echo -e "${GREEN}Plugin-Synchronisation abgeschlossen.${NC}"
+}
+
 # Funktion zum Laden von Plugins
 load_plugins() {
     mkdir -p "$PLUGIN_DIR"
@@ -659,7 +717,7 @@ load_plugins() {
             ((plugin_count++))
         fi
     done
-    echo -e " ${BLUE}24)${NC} Plugin-Ordner öffnen"
+    echo -e " ${BLUE}24)${NC} Plugins synchronisieren und Ordner öffnen"
     return $plugin_count
 }
 
@@ -808,6 +866,7 @@ while true; do
         17) show_tutorial;;
         18) echo -e "${GREEN}👋 Auf Wiedersehen!${NC}"; log_message "INFO" "Skript beendet."; unset TERMUX_SCRIPT_STARTUP_RUNNING; exit 0;;
         24)
+            sync_plugins
             echo -e "${CYAN}Öffne Plugin-Ordner: $PLUGIN_DIR${NC}"
             if check_command "mc" "mc"; then
                 mc "$PLUGIN_DIR"
