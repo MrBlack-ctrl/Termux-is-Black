@@ -760,14 +760,8 @@ sync_plugins() {
 load_plugins() {
     mkdir -p "$PLUGIN_DIR"
     plugin_count=0
-    for plugin in "$PLUGIN_DIR"/*.sh; do
-        if [ -f "$plugin" ]; then
-            source "$plugin"
-            echo -e " ${BLUE}$((23 + plugin_count + 1)))${NC} Plugin: $(basename "$plugin" .sh)"
-            ((plugin_count++))
-        fi
-    done
-    echo -e " ${BLUE}24)${NC} Plugins synchronisieren und Ordner öffnen"
+    # Nur Option 24 anzeigen, keine Auflistung der Plugins im Hauptmenü
+    echo -e " ${BLUE}24)${NC} Plugins synchronisieren und auswählen"
     return $plugin_count
 }
 
@@ -953,23 +947,9 @@ while true; do
             read -p "Weiter..."
             ;;
         *)
-            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -gt 18 ] && [ "$choice" -le $((18 + plugin_count)) ]; then
-                plugin_index=$((choice - 18 - 1))
-                plugin_file=$(ls "$PLUGIN_DIR"/*.sh | sed -n "$((plugin_index + 1))p")
-                plugin_name=$(basename "$plugin_file" .sh)
-                if [ -n "$plugin_file" ] && type "run_$plugin_name" &>/dev/null; then
-                    log_message "INFO" "Führe Plugin '$plugin_name' aus."
-                    "run_$plugin_name"
-                else
-                    log_message "ERROR" "Plugin '$plugin_name' nicht ausführbar."
-                    echo -e "${RED}Plugin nicht ausführbar.${NC}"
-                fi
-                read -p "Weiter..."
-            else
-                log_message "ERROR" "Ungültige Menüauswahl: $choice"
-                echo -e "${RED}🚨 Ungültige Auswahl.${NC}"
-                sleep 2
-            fi
+            log_message "ERROR" "Ungültige Menüauswahl: $choice"
+            echo -e "${RED}🚨 Ungültige Auswahl.${NC}"
+            sleep 2
             ;;
     esac
 done
