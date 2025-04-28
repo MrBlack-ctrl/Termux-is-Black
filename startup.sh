@@ -5,7 +5,7 @@ CONFIG_FILE="$HOME/.termux_startup.conf"
 LOG_FILE="$HOME/termux_startup.log"
 REPO_URL="https://github.com/MrBlack-ctrl/Termux-is-Black"
 RAW_SCRIPT_URL="https://raw.githubusercontent.com/MrBlack-ctrl/Termux-is-Black/main/startup.sh"
-PLUGIN_DIR="$HOME/.termux_is_black_plugins"
+PLUGIN_DIR="$HOME/Termux-is-Black/plugins"
 PLUGIN_REPO_URL="https://raw.githubusercontent.com/MrBlack-ctrl/Termux-is-Black/main/plugins/"
 
 # Standardkonfiguration laden oder erstellen
@@ -23,6 +23,7 @@ BASHRC_FILE="$HOME/.bashrc"
 AUTOSTART_MARKER="# AUTOSTART_TERMUX_SCRIPT_V1"
 LOG_FILE="$HOME/termux_startup.log"
 THEME="default"
+PLUGIN_DIR="$HOME/Termux-is-Black/plugins"
 PLUGIN_REPO_URL="$PLUGIN_REPO_URL"
 EOF
         source "$CONFIG_FILE"
@@ -706,6 +707,11 @@ sync_plugins() {
         read -p "Weiter..."; return
     }
 
+    # Bekannte Plugin-Liste definieren (statt zu versuchen, die HTML-Seite zu parsen)
+    known_plugins=("backup_manager.sh" "file_cleaner.sh" "network_monitor.sh" "system_info.sh" "task_scheduler.sh")
+    
+    echo -e "${CYAN}Lade bekannte Plugins von '$PLUGIN_REPO_URL'...${NC}"
+    
     # Temporäres Verzeichnis für Downloads
     temp_dir="$HOME/.termux_is_black_plugins_temp"
     mkdir -p "$temp_dir" || {
@@ -714,40 +720,40 @@ sync_plugins() {
         read -p "Weiter..."; return
     }
 
-    # Liste der Plugins aus dem Repository abrufen (über GitHub API oder Fallback)
-    echo -e "${CYAN}Suche nach Plugins in '$PLUGIN_REPO_URL'...${NC}"
-    plugin_list=$(wget -q -O - "${PLUGIN_REPO_URL%plugins/*}tree/main/plugins" | grep -oP 'href="[^"]+/blob/main/plugins/[^"]+\.sh"' | sed 's/.*\/\(.*\.sh\).*/\1/')
-    if [ -z "$plugin_list" ]; then
-        log_message "WARNING" "Keine Plugins in '$PLUGIN_REPO_URL' gefunden oder Verbindung fehlgeschlagen."
-        echo -e "${YELLOW}Keine Plugins gefunden oder Verbindung fehlgeschlagen. Nur lokale Plugins werden verwendet.${NC}"
-    else
-        echo -e "${BLUE}Gefundene Plugins:${NC} $plugin_list"
-        for plugin in $plugin_list; do
-            plugin_url="${PLUGIN_REPO_URL}${plugin}"
-            plugin_path="$PLUGIN_DIR/$plugin"
-            temp_path="$temp_dir/$plugin"
-            echo -e "${CYAN}Lade $plugin...${NC}"
-            if wget -O "$temp_path" "$plugin_url" 2>> "$LOG_FILE"; then
-                if grep -q "^run_" "$temp_path"; then
-                    mv "$temp_path" "$plugin_path" && chmod +x "$plugin_path"
-                    log_message "INFO" "Plugin '$plugin' erfolgreich heruntergeladen und installiert."
-                    echo -e "${GREEN}Plugin '$plugin' installiert.${NC}"
-                else
-                    log_message "ERROR" "Plugin '$plugin' ist ungültig (keine run_ Funktion gefunden)."
-                    echo -e "${RED}Plugin '$plugin' ist ungültig (keine run_ Funktion).${NC}"
-                    rm -f "$temp_path"
-                fi
+    plugin_count=0
+    for plugin in "${known_plugins[@]}"; do
+        plugin_url="${PLUGIN_REPO_URL}${plugin}"
+        plugin_path="$PLUGIN_DIR/$plugin"
+        temp_path="$temp_dir/$plugin"
+        
+        echo -e "${CYAN}Lade $plugin...${NC}"
+        if wget -q -O "$temp_path" "$plugin_url" 2>> "$LOG_FILE"; then
+            if grep -q "^run_" "$temp_path"; then
+                mv "$temp_path" "$plugin_path" && chmod +x "$plugin_path"
+                log_message "INFO" "Plugin '$plugin' erfolgreich heruntergeladen und installiert."
+                echo -e "${GREEN}Plugin '$plugin' installiert.${NC}"
+                ((plugin_count++))
             else
-                log_message "ERROR" "Fehler beim Herunterladen von '$plugin'."
-                echo -e "${RED}Fehler beim Herunterladen von '$plugin'.${NC}"
+                log_message "ERROR" "Plugin '$plugin' ist ungültig (keine run_ Funktion gefunden)."
+                echo -e "${RED}Plugin '$plugin' ist ungültig (keine run_ Funktion).${NC}"
                 rm -f "$temp_path"
             fi
-        done
-    fi
+        else
+            log_message "ERROR" "Fehler beim Herunterladen von '$plugin'."
+            echo -e "${RED}Fehler beim Herunterladen von '$plugin'.${NC}"
+            rm -f "$temp_path"
+        fi
+    done
 
     rm -rf "$temp_dir"
-    log_message "INFO" "Plugin-Synchronisation abgeschlossen."
-    echo -e "${GREEN}Plugin-Synchronisation abgeschlossen.${NC}"
+    
+    if [ $plugin_count -eq 0 ]; then
+        log_message "WARNING" "Keine Plugins gefunden oder heruntergeladen."
+        echo -e "${YELLOW}Keine Plugins erfolgreich synchronisiert.${NC}"
+    else
+        log_message "INFO" "Plugin-Synchronisation abgeschlossen: $plugin_count Plugins synchronisiert."
+        echo -e "${GREEN}Plugin-Synchronisation abgeschlossen: $plugin_count Plugins synchronisiert.${NC}"
+    fi
 }
 
 # Funktion zum Laden von Plugins
