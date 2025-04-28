@@ -212,7 +212,7 @@ check_command() {
             run_with_progress "pkg update -y"
             if ! pkg install "$pkg" -y 2>> "$LOG_FILE"; then
                 log_message "ERROR" "Installation von '$pkg' fehlgeschlagen."
-                echo -e-d0e "${RED}Installation von '$pkg' fehlgeschlagen.${NC}"
+                echo -e "${RED}Installation von '$pkg' fehlgeschlagen.${NC}"
                 return 1
             else
                 log_message "INFO" "'$pkg' erfolgreich installiert."
@@ -576,21 +576,46 @@ manage_ssh() {
 # Funktion zum Anzeigen des Menüs
 show_menu() {
     echo -e "${YELLOW}${BOLD}${UNDERLINE}Hauptmenü:${NC}"
-    echo -e " ${CYAN} 1) 🔄 Update System ${NC}(pkg)"
-    echo -e " ${CYAN} 2) 📁 Dateimanager ${NC}(mc)"
-    echo -e " ${CYAN} 3) 📊 Prozesse ${NC}(htop)"
-    echo -e " ${CYAN} 4) 🌐 Netzwerk Info ${NC}(ifconfig)"
-    echo -e " ${CYAN} 5) 📦 Paket installieren ${NC}(pkg)"
-    echo -e " ${GREEN} 6) 🐍⚙️ Py-Module Auto-Install${NC}"
-    echo -e " ${GREEN} 7) ▶️🐍 Python Skript starten${NC}"
-    echo -e " ${GREEN} 8) 🛠️🐍 Py-Module Manuell ${NC}(pip)"
-    echo -e " ${GREEN} 9) 🗑️🐍 Py-Module Deinstallieren ${NC}(pip)"
-    echo -e " ${BLUE}10) 🐙 Git Helfer ${NC}(status/pull/commit/push)"
-    echo -e " ${BLUE}11) 📡 Netzwerk Scan ${NC}(nmap)"
-    echo -e " ${BLUE}12) 📝 .bashrc bearbeiten ${NC}(nano)"
-    echo -e " ${BLUE}13) 💾 Termux Backup ${NC}(tar)"
-    echo -e " ${BLUE}14) 🔒 SSH-Server Verwaltung ${NC}(sshd)"
-    echo -e " ${BLUE}15) 🔄 Skript aktualisieren ${NC}(github)"
+    echo ""
+
+    # Python-Optionen
+    echo -e "${MAGENTA}${BOLD}🐍 Python-Optionen${NC}"
+    echo -e "${WHITE}----------${NC}"
+    echo -e " ${GREEN} 1) 🐍⚙️ Py-Module Auto-Install${NC}"
+    echo -e " ${GREEN} 2) ▶️🐍 Python Skript starten${NC}"
+    echo -e " ${GREEN} 3) 🛠️🐍 Py-Module Manuell ${NC}(pip)"
+    echo -e " ${GREEN} 4) 🗑️🐍 Py-Module Deinstallieren ${NC}(pip)"
+    echo ""
+
+    # pkg-Optionen
+    echo -e "${CYAN}${BOLD}📦 pkg-Optionen${NC}"
+    echo -e "${WHITE}----------${NC}"
+    echo -e " ${CYAN} 5) 🔄 Update System ${NC}(pkg)"
+    echo -e " ${CYAN} 6) 📁 Dateimanager ${NC}(mc)"
+    echo -e " ${CYAN} 7) 📊 Prozesse ${NC}(htop)"
+    echo -e " ${CYAN} 8) 🌐 Netzwerk Info ${NC}(ifconfig)"
+    echo -e " ${CYAN} 9) 📦 Paket installieren ${NC}(pkg)"
+    echo ""
+
+    # Netzwerk/Sicherheit
+    echo -e "${BLUE}${BOLD}🌐 Netzwerk & Sicherheit${NC}"
+    echo -e "${WHITE}----------${NC}"
+    echo -e " ${BLUE}10) 📡 Netzwerk Scan ${NC}(nmap)"
+    echo -e " ${BLUE}11) 🔒 SSH-Server Verwaltung ${NC}(sshd)"
+    echo ""
+
+    # Backup/Git/Update
+    echo -e "${GREEN}${BOLD}💾 Backup, Git & Update${NC}"
+    echo -e "${WHITE}----------${NC}"
+    echo -e " ${BLUE}12) 💾 Termux Backup ${NC}(tar)"
+    echo -e " ${BLUE}13) 🐙 Git Helfer ${NC}(status/pull/commit/push)"
+    echo -e " ${BLUE}14) 🔄 Skript aktualisieren ${NC}(github)"
+    echo ""
+
+    # Sonstiges
+    echo -e "${YELLOW}${BOLD}⚙️ Sonstiges${NC}"
+    echo -e "${WHITE}----------${NC}"
+    echo -e " ${BLUE}15) 📝 .bashrc bearbeiten ${NC}(nano)"
     echo -e " ${RED}16) 🚪 Beenden${NC}"
     echo ""
 }
@@ -620,21 +645,21 @@ while true; do
     read -p "$(echo -e "${WHITE}${BOLD}Wähle eine Option [1-16]: ${NC}")" choice
 
     case $choice in
-        1) run_with_progress "pkg update && pkg upgrade -y"; read -p "Weiter...";;
-        2) echo -e "${CYAN}🚀 Starte Dateimanager...${NC}"; if check_command "mc" "mc"; then mc; else read -p "Weiter..."; fi;;
-        3) echo -e "${CYAN}🚀 Starte Prozessliste...${NC}"; if check_command "htop" "htop"; then htop; else read -p "Weiter..."; fi;;
-        4) echo -e "${CYAN}🔎 Zeige Netzwerk Info...${NC}"; if check_command "ifconfig" "net-tools"; then ifconfig; else read -p "Weiter..."; fi; read -p "Weiter...";;
-        5) read -p "$(echo -e "${BLUE}Zu installierende pkg-Pakete: ${NC}")" packages; if [ -n "$packages" ]; then echo -e "${CYAN}Installiere: $packages...${NC}"; pkg install $packages -y 2>> "$LOG_FILE"; else echo -e "${YELLOW}Keine Pakete angegeben.${NC}"; fi; read -p "Weiter...";;
-        6) auto_install_python_modules;;
-        7) start_python_script;;
-        8) manual_install_python_modules;;
-        9) uninstall_python_modules;;
-        10) git_helper;;
-        11) network_scan;;
-        12) edit_bashrc;;
-        13) backup_termux;;
-        14) manage_ssh;;
-        15) update_script;;
+        1) auto_install_python_modules;;
+        2) start_python_script;;
+        3) manual_install_python_modules;;
+        4) uninstall_python_modules;;
+        5) run_with_progress "pkg update && pkg upgrade -y"; read -p "Weiter...";;
+        6) echo -e "${CYAN}🚀 Starte Dateimanager...${NC}"; if check_command "mc" "mc"; then mc; else read -p "Weiter..."; fi;;
+        7) echo -e "${CYAN}🚀 Starte Prozessliste...${NC}"; if check_command "htop" "htop"; then htop; else read -p "Weiter..."; fi;;
+        8) echo -e "${CYAN}🔎 Zeige Netzwerk Info...${NC}"; if check_command "ifconfig" "net-tools"; then ifconfig; else read -p "Weiter..."; fi; read -p "Weiter...";;
+        9) read -p "$(echo -e "${BLUE}Zu installierende pkg-Pakete: ${NC}")" packages; if [ -n "$packages" ]; then echo -e "${CYAN}Installiere: $packages...${NC}"; pkg install $packages -y 2>> "$LOG_FILE"; else echo -e "${YELLOW}Keine Pakete angegeben.${NC}"; fi; read -p "Weiter...";;
+        10) network_scan;;
+        11) manage_ssh;;
+        12) backup_termux;;
+        13) git_helper;;
+        14) update_script;;
+        15) edit_bashrc;;
         16) echo -e "${GREEN}👋 Auf Wiedersehen!${NC}"; log_message "INFO" "Skript beendet."; unset TERMUX_SCRIPT_STARTUP_RUNNING; exit 0;;
         *) log_message "ERROR" "Ungültige Menüauswahl: $choice"; echo -e "${RED}🚨 Ungültige Auswahl.${NC}"; sleep 2;;
     esac
