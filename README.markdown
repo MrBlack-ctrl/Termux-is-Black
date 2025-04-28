@@ -304,7 +304,7 @@ Für weitere Hilfe, kontaktiere mich in der Telegram-Gruppe oder direkt unter **
 
 `Termux-is-Black` wurde von **Mr.Black** für die **MIB Main in Black** Community entwickelt. Tritt unserer Telegram-Gruppe bei, um Updates, Tipps und Unterstützung zu erhalten:
 
-- **Telegram-Gruppe**: [MIB Main in Black](https://t.me/DEINE_GRUPPEN_URL) *(Füge den Link hinzu, wenn verfügbar)*  
+- **Telegram-Gruppe**: [MIB Main in Black]([https://t.me/+Mde3XjyTPUFlMjQy]*  
 - **Kontakt**: [@MrBlackHead01](https://t.me/MrBlackHead01)  
 - **Firma**: Black-Enterprises
 
