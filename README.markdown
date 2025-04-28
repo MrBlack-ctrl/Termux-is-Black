@@ -277,7 +277,7 @@ Dieses Projekt ist unter der MIT-Lizenz veröffentlicht. Siehe [LICENSE](LICENSE
 ## 🙌 Danksagung
 
 - **[🧑‍💻 Mr.Black](https://t.me/MrBlackHead01)** für die Vision, Leitung und Entwicklung des Projekts.
-- **Walter, C3PO, Büchereule, Onkel iROBOT, by MEXX, LUCA und Nicolas** für ihren unermüdlichen Einsatz, in der [📢 MIB Main in Black](https://t.me/+Mde3XjyTPUFlMjQy)-Community für Ordnung zu sorgen und den Rücken freizuhalten.
+- **Walter, Büchereule, Onkel iROBOT, by MEXX, LUCA und Nicolas** für ihren unermüdlichen Einsatz, in der [📢 MIB Main in Black](https://t.me/+Mde3XjyTPUFlMjQy)-Community für Ordnung zu sorgen und den Rücken freizuhalten.
 - **MIB Main in Black**-Community für Inspiration und Feedback.
 - Termux-Entwickler für die großartige Plattform.
 - Alle Mitwirkenden, die Plugins, Ideen und Bugfixes beigesteuert haben.
