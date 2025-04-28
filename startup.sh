@@ -911,11 +911,38 @@ while true; do
         18) echo -e "${GREEN}👋 Auf Wiedersehen!${NC}"; log_message "INFO" "Skript beendet."; unset TERMUX_SCRIPT_STARTUP_RUNNING; exit 0;;
         24)
             sync_plugins
-            echo -e "${CYAN}Öffne Plugin-Ordner: $PLUGIN_DIR${NC}"
-            if check_command "mc" "mc"; then
-                mc "$PLUGIN_DIR"
+            echo -e "${CYAN}Verfügbare Plugins in: $PLUGIN_DIR${NC}"
+            plugin_files=("$PLUGIN_DIR"/*.sh)
+            if [ ${#plugin_files[@]} -eq 0 ] || [ ! -f "${plugin_files[0]}" ]; then
+                echo -e "${YELLOW}Keine Plugins gefunden. Versuche die Synchronisierung erneut.${NC}"
             else
-                ls -l "$PLUGIN_DIR"
+                echo -e "${YELLOW}Wähle ein Plugin zum Ausführen:${NC}"
+                for i in "${!plugin_files[@]}"; do
+                    plugin_name=$(basename "${plugin_files[$i]}" .sh)
+                    echo -e " ${MAGENTA}$((i+1)))${NC} $plugin_name"
+                done
+                read -p "$(echo -e "${BLUE}Plugin auswählen [1-${#plugin_files[@]}] oder 0 zum Abbrechen: ${NC}")" plugin_choice
+                if [[ "$plugin_choice" =~ ^[0-9]+$ ]] && [ "$plugin_choice" -ge 1 ] && [ "$plugin_choice" -le ${#plugin_files[@]} ]; then
+                    selected_plugin="${plugin_files[$((plugin_choice-1))]}"
+                    plugin_name=$(basename "$selected_plugin" .sh)
+                    if [ -f "$selected_plugin" ]; then
+                        source "$selected_plugin"
+                        if type "run_$plugin_name" &>/dev/null; then
+                            log_message "INFO" "Führe Plugin '$plugin_name' aus."
+                            echo -e "${GREEN}Starte Plugin: $plugin_name${NC}"
+                            "run_$plugin_name"
+                        else
+                            log_message "ERROR" "Plugin '$plugin_name' hat keine run_$plugin_name Funktion."
+                            echo -e "${RED}Plugin '$plugin_name' kann nicht ausgeführt werden (fehlende run_$plugin_name Funktion).${NC}"
+                        fi
+                    else
+                        log_message "ERROR" "Plugin '$plugin_name' nicht gefunden."
+                        echo -e "${RED}Plugin nicht gefunden.${NC}"
+                    fi
+                elif [ "$plugin_choice" != "0" ]; then
+                    log_message "ERROR" "Ungültige Plugin-Auswahl: $plugin_choice"
+                    echo -e "${RED}Ungültige Auswahl.${NC}"
+                fi
             fi
             read -p "Weiter..."
             ;;
