@@ -1,8 +1,8 @@
-# Termux-is-Black
+# BLACK-TERMUX-SHELL
 
 <a href='https://postimg.cc/m1QfQDP6' target='_blank'><img src='https://i.postimg.cc/m1QfQDP6/Chat-GPT-Image-28-Apr-2025-11-15-54.png' border='0' alt='Chat-GPT-Image-28-Apr-2025-11-15-54'/></a> <!-- Ersetze durch einen tatsächlichen Banner-Link, falls verfügbar -->
 
-Willkommen bei **Termux-is-Black**, dem ultimativen Bash-Skript für Termux, das deine Terminal-Erfahrung auf Android revolutioniert! Dieses Skript bietet ein interaktives Menü mit leistungsstarken Tools für Python-Entwicklung, Systemverwaltung, Netzwerkanalyse, Backups und mehr. Entwickelt für die **MIB Main in Black**-Community, ist es sowohl für Anfänger als auch für Profis geeignet.
+Willkommen bei **BLACK-TERMUX-SHELL**, dem ultimativen Bash-Skript für Termux, das deine Terminal-Erfahrung auf Android revolutioniert! Dieses Skript bietet ein interaktives Menü mit leistungsstarken Tools für Python-Entwicklung, Systemverwaltung, Netzwerkanalyse, Backups und mehr. Entwickelt für die **MIB Main in Black**-Community, ist es sowohl für Anfänger als auch für Profis geeignet.
 
 ## 🌟 Überblick
 
@@ -16,7 +16,7 @@ Willkommen bei **Termux-is-Black**, dem ultimativen Bash-Skript für Termux, das
 - Anpassbare Themes und ein interaktives Tutorial für neue Nutzer.
 - Sicherheitsprüfungen für Python-Skripte.
 
-Ob du Python-Skripte debuggen, dein System aktualisieren oder eigene Plugins entwickeln möchtest – **Termux-is-Black** hat alles, was du brauchst!
+Ob du Python-Skripte debuggen, dein System aktualisieren oder eigene Plugins entwickeln möchtest – **BLACK-TERMUX-SHELL** hat alles, was du brauchst!
 
 ## 🚀 Installation
 
@@ -284,4 +284,4 @@ Dieses Projekt ist unter der MIT-Lizenz veröffentlicht. Siehe [LICENSE](LICENSE
 
 ---
 
-**Termux-is-Black** – Dein Tor zur Macht des Terminals! 🚀
+**BLACK-TERMUX-SHELL** – Dein Tor zur Macht des Terminals! 🚀
