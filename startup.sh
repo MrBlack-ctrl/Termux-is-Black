@@ -183,9 +183,9 @@ update_script() {
 # Funktion zum Anzeigen des Banners
 show_banner() {
     clear
-    echo -e "${BLUE}${BOLD}=========================================${NC}"
-    echo -e "${CYAN}${BOLD}      🚀 Willkommen bei Termux! 🚀       ${NC}"
-    echo -e "${MAGENTA}${BOLD}=========================================${NC}"
+    echo -e "${GREEN}${BOLD}=========================================${NC}"
+    echo -e "${CYAN}${BOLD}      🚀 BLACK-TERMUX-SHELL! 🚀       ${NC}"
+    echo -e "${GREEN}${BOLD}=========================================${NC}"
     echo ""
 }
 
