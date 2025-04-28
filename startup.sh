@@ -103,21 +103,65 @@ check_permissions() {
 
 # --- Autostart-Einrichtung ---
 setup_autostart() {
-    if ! grep -qF "$AUTOSTART_MARKER" "$BASHRC_FILE" 2>/dev/null; then
-        log_message "INFO" "Richte Autostart für Skript ein."
-        echo -e "${YELLOW}INFO: Richte Autostart für dieses Skript ein...${NC}"
-        echo "" >> "$BASHRC_FILE"
-        echo "$AUTOSTART_MARKER" >> "$BASHRC_FILE"
-        echo "# Führt das benutzerdefinierte Startskript aus, wenn es existiert" >> "$BASHRC_FILE"
-        echo "if [ -f \"$SCRIPT_PATH\" ]; then" >> "$BASHRC_FILE"
-        echo "   \"$SCRIPT_PATH\"" >> "$BASHRC_FILE"
-        echo "fi" >> "$BASHRC_FILE"
-        echo "" >> "$BASHRC_FILE"
-        log_message "INFO" "Autostart erfolgreich in '$BASHRC_FILE' eingetragen."
-        echo -e "${GREEN}Autostart erfolgreich in '$BASHRC_FILE' eingetragen.${NC}"
-        echo -e "${YELLOW}Das Skript wird beim nächsten Start von Termux automatisch ausgeführt.${NC}"
-        sleep 3
+    # Ermittle den tatsächlichen Pfad des aktuell ausgeführten Skripts
+    local actual_script_path
+    # Versuche, den absoluten Pfad mit readlink zu bekommen (zuverlässiger)
+    if command -v readlink >/dev/null && actual_script_path=$(readlink -f "$0"); then
+        : # Pfad erfolgreich ermittelt
+    elif [[ "$0" == /* ]]; then # Wenn $0 bereits absolut ist
+        actual_script_path="$0"
+    else # Fallback, wenn readlink nicht geht oder $0 relativ ist
+        actual_script_path="$(pwd)/$0"
+        # Versuche, den Pfad zu normalisieren (entfernt . und ..)
+        actual_script_path=$(cd "$(dirname "$actual_script_path")" 2>/dev/null && pwd || pwd)/$(basename "$actual_script_path")
     fi
+
+    # Überprüfe, ob der Pfad ermittelt werden konnte und die Datei existiert
+    if [ -z "$actual_script_path" ] || [ ! -f "$actual_script_path" ]; then
+        log_message "ERROR" "Konnte den Pfad des aktuellen Skripts nicht zuverlässig ermitteln ('$0'). Autostart wird nicht eingerichtet."
+        echo -e "${RED}Fehler: Konnte den Pfad des aktuellen Skripts nicht ermitteln. Autostart übersprungen.${NC}"
+        return 1 # Beende die Funktion mit Fehlercode
+    fi
+
+    # Prüfe, ob der Autostart-Marker bereits existiert
+    if ! grep -qF "$AUTOSTART_MARKER" "$BASHRC_FILE" 2>/dev/null; then
+        log_message "INFO" "Richte Autostart für Skript '$actual_script_path' ein."
+        echo -e "${YELLOW}INFO: Richte Autostart für dieses Skript ein ('$actual_script_path')...${NC}"
+        # Stelle sicher, dass die .bashrc existiert
+        touch "$BASHRC_FILE"
+        # Füge den Autostart-Block hinzu (verwende geschweifte Klammern für Gruppierung)
+        {
+            echo ""
+            echo "$AUTOSTART_MARKER"
+            echo "# Führt das benutzerdefinierte Startskript aus, wenn es existiert"
+            # Verwende den ermittelten Pfad, stelle sicher, dass er korrekt gequotet wird
+            echo "if [ -f \"$actual_script_path\" ]; then"
+            echo "   \"$actual_script_path\""
+            echo "fi"
+            echo ""
+        } >> "$BASHRC_FILE"
+
+        # Überprüfe, ob das Schreiben erfolgreich war
+        if grep -qF "$actual_script_path" "$BASHRC_FILE"; then
+             log_message "INFO" "Autostart erfolgreich in '$BASHRC_FILE' eingetragen."
+             echo -e "${GREEN}Autostart erfolgreich in '$BASHRC_FILE' eingetragen.${NC}"
+             echo -e "${YELLOW}Das Skript wird beim nächsten Start von Termux automatisch ausgeführt.${NC}"
+             sleep 3
+        else
+             log_message "ERROR" "Fehler beim Schreiben des Autostart-Eintrags in '$BASHRC_FILE'."
+             echo -e "${RED}Fehler: Konnte den Autostart-Eintrag nicht in '$BASHRC_FILE' schreiben.${NC}"
+             sleep 3
+             return 1 # Beende die Funktion mit Fehlercode
+        fi
+    # else # Optional: Hier könnte man prüfen, ob der *existierende* Eintrag korrekt ist
+    #    existing_path=$(grep -A 1 "$AUTOSTART_MARKER" "$BASHRC_FILE" | grep -oP '(?<=if \[ -f ")[^"]+')
+    #    if [ -n "$existing_path" ] && [ "$existing_path" != "$actual_script_path" ]; then
+    #        log_message "WARNING" "Vorhandener Autostart-Eintrag zeigt auf '$existing_path', aber Skript ist unter '$actual_script_path'. Manuelle Korrektur empfohlen."
+    #        echo -e "${YELLOW}Warnung: Vorhandener Autostart-Eintrag in '$BASHRC_FILE' scheint falsch zu sein. Bitte manuell prüfen.${NC}"
+    #        sleep 5
+    #    fi
+    fi
+    return 0 # Erfolgreich beendet
 }
 
 # --- Update-Funktion ---
