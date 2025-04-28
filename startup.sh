@@ -729,9 +729,10 @@ sync_plugins() {
         echo -e "${CYAN}Lade $plugin...${NC}"
         if wget -q -O "$temp_path" "$plugin_url" 2>> "$LOG_FILE"; then
             if grep -q "^run_" "$temp_path"; then
+                # Mit explizitem chmod +x für alle heruntergeladenen Plugins
                 mv "$temp_path" "$plugin_path" && chmod +x "$plugin_path"
-                log_message "INFO" "Plugin '$plugin' erfolgreich heruntergeladen und installiert."
-                echo -e "${GREEN}Plugin '$plugin' installiert.${NC}"
+                log_message "INFO" "Plugin '$plugin' erfolgreich heruntergeladen und installiert (ausführbar)."
+                echo -e "${GREEN}Plugin '$plugin' installiert und ausführbar gemacht.${NC}"
                 ((plugin_count++))
             else
                 log_message "ERROR" "Plugin '$plugin' ist ungültig (keine run_ Funktion gefunden)."
@@ -744,6 +745,12 @@ sync_plugins() {
             rm -f "$temp_path"
         fi
     done
+
+    # Alle vorhandenen Plugins ausführbar machen (zur Sicherheit)
+    if [ -d "$PLUGIN_DIR" ] && [ "$(ls -A "$PLUGIN_DIR" 2>/dev/null)" ]; then
+        chmod +x "$PLUGIN_DIR"/*.sh 2>/dev/null
+        log_message "INFO" "Alle vorhandenen Plugins wurden ausführbar gemacht."
+    fi
 
     rm -rf "$temp_dir"
     
@@ -911,6 +918,15 @@ while true; do
         18) echo -e "${GREEN}👋 Auf Wiedersehen!${NC}"; log_message "INFO" "Skript beendet."; unset TERMUX_SCRIPT_STARTUP_RUNNING; exit 0;;
         24)
             sync_plugins
+            
+            # Alle gefundenen Plugins automatisch ausführbar machen
+            echo -e "${CYAN}Mache alle Plugins ausführbar...${NC}"
+            if [ -d "$PLUGIN_DIR" ]; then
+                chmod +x "$PLUGIN_DIR"/*.sh 2>/dev/null
+                log_message "INFO" "Alle Plugins wurden ausführbar gemacht."
+                echo -e "${GREEN}Alle Plugins wurden ausführbar gemacht.${NC}"
+            fi
+            
             echo -e "${CYAN}Verfügbare Plugins in: $PLUGIN_DIR${NC}"
             plugin_files=("$PLUGIN_DIR"/*.sh)
             if [ ${#plugin_files[@]} -eq 0 ] || [ ! -f "${plugin_files[0]}" ]; then
