@@ -5,6 +5,7 @@ CONFIG_FILE="$HOME/.termux_startup.conf"
 LOG_FILE="$HOME/termux_startup.log"
 REPO_URL="https://github.com/MrBlack-ctrl/Termux-is-Black"
 RAW_SCRIPT_URL="https://raw.githubusercontent.com/MrBlack-ctrl/Termux-is-Black/main/startup.sh"
+PLUGIN_DIR="$HOME/.termux_is_black_plugins"
 
 # Standardkonfiguration laden oder erstellen
 load_config() {
@@ -20,6 +21,7 @@ PYTHON_CMD="python3"
 BASHRC_FILE="$HOME/.bashrc"
 AUTOSTART_MARKER="# AUTOSTART_TERMUX_SCRIPT_V1"
 LOG_FILE="$HOME/termux_startup.log"
+THEME="default"
 EOF
         source "$CONFIG_FILE"
         log_message "INFO" "Standardkonfiguration '$CONFIG_FILE' erstellt."
@@ -27,17 +29,32 @@ EOF
     SCRIPT_PATH="$HOME/$SCRIPT_NAME"
 }
 
-# --- Farben und Stil ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[0;37m'
-BOLD='\033[1m'
-UNDERLINE='\033[4m'
-NC='\033[0m' # Keine Farbe (Reset)
+# --- Farben und Stil (Theme-fähig) ---
+load_theme() {
+    THEME=${THEME:-"default"}
+    case $THEME in
+        dark)
+            RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
+            BLUE='\033[0;34m'; MAGENTA='\033[0;35m'; CYAN='\033[0;36m'
+            WHITE='\033[0;37m'; BOLD='\033[1m'; UNDERLINE='\033[4m'; NC='\033[0m'
+            ;;
+        mib)
+            RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'
+            BLUE='\033[1;34m'; MAGENTA='\033[1;35m'; CYAN='\033[1;36m'
+            WHITE='\033[1;37m'; BOLD='\033[1m'; UNDERLINE='\033[4m'; NC='\033[0m'
+            ;;
+        light)
+            RED='\033[0;91m'; GREEN='\033[0;92m'; YELLOW='\033[0;93m'
+            BLUE='\033[0;94m'; MAGENTA='\033[0;95m'; CYAN='\033[0;96m'
+            WHITE='\033[0;97m'; BOLD='\033[1m'; UNDERLINE='\033[4m'; NC='\033[0m'
+            ;;
+        *)
+            RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
+            BLUE='\033[0;34m'; MAGENTA='\033[0;35m'; CYAN='\033[0;36m'
+            WHITE='\033[0;37m'; BOLD='\033[1m'; UNDERLINE='\033[4m'; NC='\033[0m'
+            ;;
+    esac
+}
 
 # --- Logging ---
 log_message() {
@@ -106,7 +123,6 @@ update_script() {
     echo -e "${CYAN}${BOLD}🔄 Skript aktualisieren${NC}"
     log_message "INFO" "Starte Skript-Update von '$REPO_URL'."
 
-    # Prüfe, ob das Skript in einem Git-Repository liegt
     if [ -d "$(dirname "$SCRIPT_PATH")/.git" ]; then
         if ! check_command "git" "git"; then read -p "Weiter..."; return; fi
         echo -e "${CYAN}Skript ist in einem Git-Repository. Führe 'git pull' aus...${NC}"
@@ -122,19 +138,15 @@ update_script() {
             fi
         )
     else
-        # Kein Git-Repository, lade die Datei direkt herunter
         if ! check_command "wget" "wget"; then read -p "Weiter..."; return; fi
         echo -e "${CYAN}Kein Git-Repository. Lade Skript von '$RAW_SCRIPT_URL'...${NC}"
         temp_file="$HOME/startup.sh.tmp"
         if wget -O "$temp_file" "$RAW_SCRIPT_URL" 2>> "$LOG_FILE"; then
-            # Prüfe, ob die heruntergeladene Datei gültig ist (z. B. enthält sie #!/bin/bash)
             if grep -q "^#!/bin/bash" "$temp_file"; then
-                # Erstelle ein Backup des aktuellen Skripts
                 backup_file="$SCRIPT_PATH.bak"
                 mv "$SCRIPT_PATH" "$backup_file" 2>> "$LOG_FILE" && {
                     log_message "INFO" "Backup des aktuellen Skripts erstellt: $backup_file"
                 }
-                # Ersetze das Skript
                 mv "$temp_file" "$SCRIPT_PATH" 2>> "$LOG_FILE" && chmod +x "$SCRIPT_PATH" 2>> "$LOG_FILE"
                 if [ $? -eq 0 ]; then
                     log_message "INFO" "Skript erfolgreich aktualisiert von '$RAW_SCRIPT_URL'."
@@ -245,6 +257,18 @@ check_python_pip() {
     return 0
 }
 
+# Funktion zur Sicherheitsprüfung von Python-Skripten
+check_python_security() {
+    local script=$1
+    if grep -qE "os\.system|subprocess\.run|subprocess\.call|subprocess\.Popen" "$script"; then
+        log_message "WARNING" "Skript '$script' enthält potenziell unsichere Befehle."
+        echo -e "${YELLOW}Warnung: Skript enthält potenziell unsichere Befehle (z. B. os.system, subprocess).${NC}"
+        read -p "Trotzdem ausführen? (j/N): " confirm
+        [[ ! "$confirm" =~ ^[jJ](a)?$ ]] && return 1
+    fi
+    return 0
+}
+
 # Funktion zum automatischen Installieren fehlender Python-Module
 auto_install_python_modules() {
     echo -e "${CYAN}${BOLD}🐍⚙️ Auto-Install Python Module${NC}"
@@ -271,7 +295,6 @@ auto_install_python_modules() {
     missing_modules=()
     echo -e "${BLUE}Prüfe Installation...${NC}"
 
-    # Liste der Python-Standardmodule
     standard_modules="os sys math random json datetime time argparse re collections itertools functools subprocess logging threading multiprocessing asyncio pathlib select socket struct enum codecs bisect calendar cmath copy csv decimal email fractions getopt glob hashlib heapq io locale operator pickle queue shutil signal stat string tempfile uuid warnings weakref xml zlib"
 
     for module in $required_modules; do
@@ -316,7 +339,7 @@ auto_install_python_modules() {
     read -p "Weiter..."
 }
 
-# Funktion zum Starten eines Python-Skripts
+# Funktion zum Starten eines Python-Skripts (mit Debugging-Option)
 start_python_script() {
     echo -e "${CYAN}${BOLD}▶️🐍 Python Skript starten${NC}"
     log_message "INFO" "Suche Python-Skripte in '$PYTHON_SCRIPT_DIR'..."
@@ -336,24 +359,44 @@ start_python_script() {
     fi
 
     echo -e "${YELLOW}Verfügbare Skripte:${NC}"
-    i=1; for script in "${py_scripts[@]}"; do echo -e " ${MAGENTA}$i)${NC} $script"; ((i++)); done; echo ""
+    i=1; for script in "${py_scripts[@]}"; do echo -e " ${MAGENTA}$i)${NC} $script"; ((i++)); done
+    echo -e " ${MAGENTA}d)${NC} Skript mit Debugging (pdb)"
+    echo ""
 
-    read -p "$(echo -e "${BLUE}Wähle Skript [Nummer]: ${NC}")" script_choice
-    if ! [[ "$script_choice" =~ ^[0-9]+$ ]] || [ "$script_choice" -lt 1 ] || [ "$script_choice" -gt ${#py_scripts[@]} ]; then
+    read -p "$(echo -e "${BLUE}Wähle Skript [Nummer/d]: ${NC}")" script_choice
+    if [ "$script_choice" = "d" ]; then
+        echo -e "${YELLOW}Debug-Modus: Wähle ein Skript zum Debuggen${NC}"
+        i=1; for script in "${py_scripts[@]}"; do echo -e " ${MAGENTA}$i)${NC} $script"; ((i++)); done
+        read -p "$(echo -e "${BLUE}Skript [Nummer]: ${NC}")" debug_choice
+        if ! [[ "$debug_choice" =~ ^[0-9]+$ ]] || [ "$debug_choice" -lt 1 ] || [ "$debug_choice" -gt ${#py_scripts[@]} ]; then
+            log_message "ERROR" "Ungültige Skriptauswahl: $debug_choice"
+            echo -e "${RED}Ungültige Auswahl.${NC}"; read -p "Weiter..."; return
+        fi
+        selected_script_index=$((debug_choice - 1))
+        script_to_run="${PYTHON_SCRIPT_DIR}/${py_scripts[$selected_script_index]}"
+        if check_python_security "$script_to_run"; then
+            echo -e "${CYAN}Starte '${py_scripts[$selected_script_index]}' mit pdb...${NC}"
+            log_message "INFO" "Führe Skript '${py_scripts[$selected_script_index]}' mit pdb aus."
+            "$PYTHON_CMD" -m pdb "$script_to_run"
+            log_message "INFO" "Debugging beendet: '${py_scripts[$selected_script_index]}'."
+            echo -e "${GREEN}Debugging beendet.${NC}"
+        fi
+    elif ! [[ "$script_choice" =~ ^[0-9]+$ ]] || [ "$script_choice" -lt 1 ] || [ "$script_choice" -gt ${#py_scripts[@]} ]; then
         log_message "ERROR" "Ungültige Skriptauswahl: $script_choice"
         echo -e "${RED}Ungültige Auswahl.${NC}"; read -p "Weiter..."; return
+    else
+        selected_script_index=$((script_choice - 1))
+        script_to_run="${PYTHON_SCRIPT_DIR}/${py_scripts[$selected_script_index]}"
+        if check_python_security "$script_to_run"; then
+            echo -e "${CYAN}Führe aus: '${py_scripts[$selected_script_index]}'...${NC}"
+            log_message "INFO" "Führe Skript '${py_scripts[$selected_script_index]}' aus."
+            echo "--- Skript-Ausgabe Start ---"
+            cd "$(dirname "$script_to_run")" && "$PYTHON_CMD" "$(basename "$script_to_run")" && cd "$HOME"
+            echo "--- Skript-Ausgabe Ende ---"
+            log_message "INFO" "Skriptausführung beendet: '${py_scripts[$selected_script_index]}'."
+            echo -e "${GREEN}Skriptausführung beendet.${NC}"
+        fi
     fi
-
-    selected_script_index=$((script_choice - 1))
-    script_to_run="${PYTHON_SCRIPT_DIR}/${py_scripts[$selected_script_index]}"
-
-    echo -e "${CYAN}Führe aus: '${py_scripts[$selected_script_index]}'...${NC}"
-    log_message "INFO" "Führe Skript '${py_scripts[$selected_script_index]}' aus."
-    echo "--- Skript-Ausgabe Start ---"
-    cd "$(dirname "$script_to_run")" && "$PYTHON_CMD" "$(basename "$script_to_run")" && cd "$HOME"
-    echo "--- Skript-Ausgabe Ende ---"
-    log_message "INFO" "Skriptausführung beendet: '${py_scripts[$selected_script_index]}'."
-    echo -e "${GREEN}Skriptausführung beendet.${NC}"
     read -p "Weiter..."
 }
 
@@ -454,9 +497,9 @@ git_helper() {
     read -p "Weiter..."
 }
 
-# Funktion für Netzwerk-Scan
+# Funktion für Netzwerk-Scan (mit Port-Scan)
 network_scan() {
-    echo -e "${CYAN}${BOLD}📡 Netzwerk Scan (nmap Ping Scan)${NC}"
+    echo -e "${CYAN}${BOLD}📡 Netzwerk Scan${NC}"
     log_message "INFO" "Starte Netzwerk-Scan."
     if ! check_command "nmap" "nmap"; then read -p "Weiter..."; return; fi
 
@@ -468,6 +511,11 @@ network_scan() {
         echo -e "${BLUE}Lokales Subnetz erkannt: $subnet ${NC}"
     fi
 
+    echo -e "${YELLOW}Scan-Typ:${NC}"
+    echo -e " ${MAGENTA}1)${NC} Ping-Scan (schnell)"
+    echo -e " ${MAGENTA}2)${NC} TCP-Port-Scan"
+    echo -e " ${MAGENTA}3)${NC} UDP-Port-Scan"
+    read -p "$(echo -e "${BLUE}Wähle Scan [1-3]: ${NC}")" scan_type
     read -p "$(echo -e "${BLUE}Ziel-IP/Subnetz [Standard: $default_target]: ${NC}")" target
     [ -z "$target" ] && target="$default_target"
 
@@ -476,8 +524,13 @@ network_scan() {
         echo -e "${RED}Kein Ziel angegeben/gefunden.${NC}"; read -p "Weiter..."; return
     fi
 
-    echo -e "${CYAN}Starte Ping Scan für '$target'... (Kann dauern)${NC}"
-    nmap -sn "$target"
+    echo -e "${CYAN}Starte Scan für '$target'... (Kann dauern)${NC}"
+    case $scan_type in
+        1) nmap -sn "$target";;
+        2) nmap -sT "$target";;
+        3) nmap -sU "$target";;
+        *) log_message "ERROR" "Ungültiger Scan-Typ: $scan_type"; echo -e "${RED}Ungültige Auswahl.${NC}";;
+    esac
     log_message "INFO" "Netzwerk-Scan für '$target' abgeschlossen."
     echo -e "${GREEN}Scan beendet.${NC}"
     read -p "Weiter..."
@@ -573,6 +626,87 @@ manage_ssh() {
     read -p "Weiter..."
 }
 
+# Funktion zum Bearbeiten der Konfigurationsdatei
+edit_config() {
+    echo -e "${CYAN}${BOLD}⚙️ Konfiguration bearbeiten${NC}"
+    log_message "INFO" "Öffne Konfigurationsdatei '$CONFIG_FILE' zum Bearbeiten."
+    if ! check_command "nano" "nano"; then read -p "Weiter..."; return; fi
+    nano "$CONFIG_FILE"
+    source "$CONFIG_FILE"
+    if [ ! -d "$PYTHON_SCRIPT_DIR" ]; then
+        log_message "WARNING" "PYTHON_SCRIPT_DIR ($PYTHON_SCRIPT_DIR) existiert nicht."
+        echo -e "${YELLOW}Warnung: PYTHON_SCRIPT_DIR ($PYTHON_SCRIPT_DIR) existiert nicht.${NC}"
+    fi
+    if ! echo "default dark mib light" | grep -qw "$THEME"; then
+        log_message "WARNING" "Ungültiges Theme: $THEME. Setze auf 'default'."
+        echo -e "${YELLOW}Warnung: Ungültiges Theme ($THEME). Setze auf 'default'.${NC}"
+        sed -i "s/THEME=.*/THEME=\"default\"/" "$CONFIG_FILE"
+    fi
+    load_theme
+    log_message "INFO" "Konfiguration bearbeitet."
+    echo -e "${GREEN}Konfiguration gespeichert.${NC}"
+    read -p "Weiter..."
+}
+
+# Funktion zum Laden von Plugins
+load_plugins() {
+    mkdir -p "$PLUGIN_DIR"
+    plugin_count=0
+    for plugin in "$PLUGIN_DIR"/*.sh; do
+        if [ -f "$plugin" ]; then
+            source "$plugin"
+            echo -e " ${BLUE}$((23 + plugin_count + 1)))${NC} Plugin: $(basename "$plugin" .sh)"
+            ((plugin_count++))
+        fi
+    done
+    echo -e " ${BLUE}24)${NC} Plugin-Ordner öffnen"
+    return $plugin_count
+}
+
+# Funktion für das interaktive Tutorial
+show_tutorial() {
+    echo -e "${CYAN}${BOLD}📚 Tutorial: Termux-is-Black${NC}"
+    log_message "INFO" "Starte interaktives Tutorial."
+    echo -e "${YELLOW}Willkommen! Dieses Skript hilft dir, Termux zu verwalten. Wähle eine Funktion zum Erkunden:${NC}"
+    echo -e " ${MAGENTA}1)${NC} Python-Skripte ausführen"
+    echo -e " ${MAGENTA}2)${NC} System aktualisieren"
+    echo -e " ${MAGENTA}3)${NC} Netzwerk-Scan"
+    echo -e " ${MAGENTA}4)${NC} Backup erstellen"
+    read -p "$(echo -e "${BLUE}Wähle [1-4]: ${NC}")" choice
+    case $choice in
+        1)
+            echo -e "${GREEN}Tutorial: Python-Skripte ausführen${NC}"
+            echo -e "1. Kopiere ein .py-Skript nach '$PYTHON_SCRIPT_DIR' (z. B. mit 'cp script.py $PYTHON_SCRIPT_DIR')."
+            echo -e "2. Wähle 'Python Skript starten' (Option 2) im Hauptmenü."
+            echo -e "3. Wähle das Skript aus der Liste. Für Debugging gib 'd' ein."
+            echo -e "${YELLOW}Tipp: Nutze 'Py-Module Auto-Install' (Option 1), um fehlende Module zu installieren.${NC}"
+            ;;
+        2)
+            echo -e "${GREEN}Tutorial: System aktualisieren${NC}"
+            echo -e "1. Wähle 'Update System' (Option 5) im Hauptmenü."
+            echo -e "2. Das Skript führt 'pkg update && pkg upgrade' aus."
+            echo -e "${YELLOW}Tipp: Stelle sicher, dass du eine Internetverbindung hast.${NC}"
+            ;;
+        3)
+            echo -e "${GREEN}Tutorial: Netzwerk-Scan${NC}"
+            echo -e "1. Wähle 'Netzwerk Scan' (Option 10) im Hauptmenü."
+            echo -e "2. Wähle einen Scan-Typ (Ping, TCP, UDP) und gib ein Ziel ein (z. B. 192.168.1.0/24)."
+            echo -e "${YELLOW}Tipp: Ping-Scans sind schneller, Port-Scans detaillierter.${NC}"
+            ;;
+        4)
+            echo -e "${GREEN}Tutorial: Backup erstellen${NC}"
+            echo -e "1. Wähle 'Termux Backup' (Option 12) im Hauptmenü."
+            echo -e "2. Das Skript erstellt ein .tar.gz-Backup von deinem Home-Verzeichnis."
+            echo -e "${YELLOW}Tipp: Backups werden in '~/storage/shared/termux_backups' gespeichert.${NC}"
+            ;;
+        *)
+            echo -e "${RED}Ungültige Auswahl.${NC}"
+            ;;
+    esac
+    log_message "INFO" "Tutorial für Option $choice abgeschlossen."
+    read -p "Weiter..."
+}
+
 # Funktion zum Anzeigen des Menüs
 show_menu() {
     echo -e "${YELLOW}${BOLD}${UNDERLINE}Hauptmenü:${NC}"
@@ -616,14 +750,24 @@ show_menu() {
     echo -e "${YELLOW}${BOLD}⚙️ Sonstiges${NC}"
     echo -e "${WHITE}----------${NC}"
     echo -e " ${BLUE}15) 📝 .bashrc bearbeiten ${NC}(nano)"
-    echo -e " ${RED}16) 🚪 Beenden${NC}"
+    echo -e " ${BLUE}16) ⚙️ Konfiguration bearbeiten ${NC}(nano)"
+    echo -e " ${BLUE}17) 📚 Interaktives Tutorial${NC}"
+    echo -e " ${RED}18) 🚪 Beenden${NC}"
+    echo ""
+
+    # Plugins
+    echo -e "${MAGENTA}${BOLD}🔌 Plugins${NC}"
+    echo -e "${WHITE}----------${NC}"
+    load_plugins
+    plugin_count=$?
     echo ""
 }
 
 # --- Hauptlogik ---
 
-# Lade Konfiguration
+# Lade Konfiguration und Theme
 load_config
+load_theme
 
 # Sicherheitsprüfung
 check_permissions
@@ -642,7 +786,7 @@ while true; do
     show_sysinfo
     show_menu
 
-    read -p "$(echo -e "${WHITE}${BOLD}Wähle eine Option [1-16]: ${NC}")" choice
+    read -p "$(echo -e "${WHITE}${BOLD}Wähle eine Option [1-$((18 + plugin_count))]: ${NC}")" choice
 
     case $choice in
         1) auto_install_python_modules;;
@@ -660,7 +804,36 @@ while true; do
         13) git_helper;;
         14) update_script;;
         15) edit_bashrc;;
-        16) echo -e "${GREEN}👋 Auf Wiedersehen!${NC}"; log_message "INFO" "Skript beendet."; unset TERMUX_SCRIPT_STARTUP_RUNNING; exit 0;;
-        *) log_message "ERROR" "Ungültige Menüauswahl: $choice"; echo -e "${RED}🚨 Ungültige Auswahl.${NC}"; sleep 2;;
+        16) edit_config;;
+        17) show_tutorial;;
+        18) echo -e "${GREEN}👋 Auf Wiedersehen!${NC}"; log_message "INFO" "Skript beendet."; unset TERMUX_SCRIPT_STARTUP_RUNNING; exit 0;;
+        24)
+            echo -e "${CYAN}Öffne Plugin-Ordner: $PLUGIN_DIR${NC}"
+            if check_command "mc" "mc"; then
+                mc "$PLUGIN_DIR"
+            else
+                ls -l "$PLUGIN_DIR"
+            fi
+            read -p "Weiter..."
+            ;;
+        *)
+            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -gt 18 ] && [ "$choice" -le $((18 + plugin_count)) ]; then
+                plugin_index=$((choice - 18 - 1))
+                plugin_file=$(ls "$PLUGIN_DIR"/*.sh | sed -n "$((plugin_index + 1))p")
+                plugin_name=$(basename "$plugin_file" .sh)
+                if [ -n "$plugin_file" ] && type "run_$plugin_name" &>/dev/null; then
+                    log_message "INFO" "Führe Plugin '$plugin_name' aus."
+                    "run_$plugin_name"
+                else
+                    log_message "ERROR" "Plugin '$plugin_name' nicht ausführbar."
+                    echo -e "${RED}Plugin nicht ausführbar.${NC}"
+                fi
+                read -p "Weiter..."
+            else
+                log_message "ERROR" "Ungültige Menüauswahl: $choice"
+                echo -e "${RED}🚨 Ungültige Auswahl.${NC}"
+                sleep 2
+            fi
+            ;;
     esac
 done
