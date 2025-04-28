@@ -1,6 +1,6 @@
 # Termux-is-Black
 
-![Termux-is-Black Banner](https://example.com/termux-is-black-banner.png) <!-- Ersetze durch einen tatsächlichen Banner-Link, falls verfügbar -->
+![Termux-is-Black Banner](https://postimg.cc/m1QfQDP6) <!-- Ersetze durch einen tatsächlichen Banner-Link, falls verfügbar -->
 
 Willkommen bei **Termux-is-Black**, dem ultimativen Bash-Skript für Termux, das deine Terminal-Erfahrung auf Android revolutioniert! Dieses Skript bietet ein interaktives Menü mit leistungsstarken Tools für Python-Entwicklung, Systemverwaltung, Netzwerkanalyse, Backups und mehr. Entwickelt für die **MIB Main in Black**-Community, ist es sowohl für Anfänger als auch für Profis geeignet.
 
