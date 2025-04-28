@@ -328,7 +328,7 @@ auto_install_python_modules() {
                     echo -e "${GREEN}$module erfolgreich installiert.${NC}"
                 else
                     log_message "ERROR" "Fehler beim Installieren von $module."
-                    echo -e "${RED}Fehler beim Installieren von $module, fahre fort...${NC}"
+                    echo -e "${RED}Fehler beim Installieren von $module.${NC}"
                 fi
             done
             log_message "INFO" "Installation abgeschlossen."
@@ -440,7 +440,7 @@ uninstall_python_modules() {
         log_message "WARNING" "Keine Module angegeben."
         echo -e "${YELLOW}Keine Module angegeben.${NC}"
     else
-        echo -e "${CYAN}Deinstalliere: $modules_to_uninstall...${NC}"
+        echo -e "${CYAN}Deinstalliere: $modules_to_install...${NC}"
         for module in $modules_to_uninstall; do
             if pip uninstall "$module" -y 2>> "$LOG_FILE"; then
                 log_message "INFO" "Modul $module erfolgreich deinstalliert."
@@ -711,58 +711,15 @@ load_plugins() {
     mkdir -p "$PLUGIN_DIR"
     # Globale Arrays für geladene Plugins
     LOADED_PLUGIN_FILES=()
-    local plugin_names=()
-    local plugin_sources=()
-    local repo_plugin_dir=""
-
-    # Prüfen, ob das Skript in einem Git-Repository ist und den Pfad ermitteln
-    if git -C "$(dirname "$0")" rev-parse --is-inside-work-tree &>/dev/null; then
-        local repo_root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
-        repo_plugin_dir="$repo_root/plugins"
-        if [ ! -d "$repo_plugin_dir" ]; then
-            repo_plugin_dir="" # Verzeichnis existiert nicht
-        fi
-    fi
-
-    # Lokale Plugins sammeln
-    for plugin_file in "$PLUGIN_DIR"/*.sh; do
-        if [ -f "$plugin_file" ]; then
-            local name=$(basename "$plugin_file" .sh)
-            LOADED_PLUGIN_FILES+=("$plugin_file")
-            plugin_names+=("$name")
-            plugin_sources+=("[L]") # Markierung für lokale Plugins
+    local plugin_count=0
+    for plugin in "$PLUGIN_DIR"/*.sh; do
+        if [ -f "$plugin" ]; then
+            source "$plugin"
+            LOADED_PLUGIN_FILES+=("$plugin") # Füge zum globalen Array hinzu
+            ((plugin_count++))
         fi
     done
-
-    # Repository Plugins sammeln (falls vorhanden und nicht schon lokal)
-    if [ -n "$repo_plugin_dir" ]; then
-        for plugin_file in "$repo_plugin_dir"/*.sh; do
-            if [ -f "$plugin_file" ]; then
-                local name=$(basename "$plugin_file" .sh)
-                # Prüfen, ob ein Plugin mit gleichem Namen bereits lokal existiert
-                local found_local=false
-                for existing_name in "${plugin_names[@]}"; do
-                    if [ "$existing_name" == "$name" ]; then
-                        found_local=true
-                        break
-                    fi
-                done
-
-                if [ "$found_local" == false ]; then
-                    LOADED_PLUGIN_FILES+=("$plugin_file")
-                    plugin_names+=("$name")
-                    plugin_sources+=("[R]") # Markierung für Repo-Plugins
-                fi
-            fi
-        done
-    fi
-
-    # Plugins sourcen
-    for file in "${LOADED_PLUGIN_FILES[@]}"; do
-        source "$file"
-    done
-
-    return ${#LOADED_PLUGIN_FILES[@]} # Anzahl der *gefundenen* Plugins zurückgeben
+    return $plugin_count # Anzahl der *geladenen* Plugins zurückgeben
 }
 
 # Funktion zum Starten eines Plugin-Skripts
